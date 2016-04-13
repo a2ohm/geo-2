@@ -4,6 +4,9 @@
 import mmap
 import yaml
 import re
+import os
+
+import jinja2
 
 class geoBuild():
 
@@ -11,21 +14,38 @@ class geoBuild():
             "solder" : ("Souder", "../i/badges/solder.png")
             }
 
-    def __init__(self, doc_in, dir_out = "./doc"):
+    # Regex
+    regex = {   'title': "^(#+) (.+)$",
+                'meta': "^\$(\w+)(: (.+))?$"
+                }
+
+    # Templates
+    template = {    'intro': 'intro.html'}
+
+    def __init__(self, doc_in, root_out = "./doc"):
+        """Init the parser.
+        """
+
+        # Save arguments
         self.doc_in = doc_in
 
-        self.doc_out = ""
-        self.dir_out = dir_out
-
-        self.f_in = None
-
+        # Set the header
         self.header = None
         self.header_limit = -1
 
-        self.items = {}
+        # Set the input file
+        self.f_in = None
 
-        # Parsing flags
-        self.pf_inP = False
+        # Set the output directory
+        self.root_out = root_out
+        self.dir_out = root_out
+        
+        self.items = {}
+        self.sections = []
+
+        # Environment
+        self.env = jinja2.Environment(
+                loader=jinja2.FileSystemLoader('./templates'))
 
     def __enter__(self):
         """Open the file.
@@ -42,6 +62,8 @@ class geoBuild():
         """Parse the header of the file.
         """
 
+        # Use mmap to only read the header of the raw doc file. This
+        # header is separated from the rest by "---".
         if self.header_limit < 0:
             f_in_mmap = mmap.mmap(self.f_in.fileno(),
                     0, access=mmap.ACCESS_READ)
@@ -59,230 +81,129 @@ class geoBuild():
                 item_dict["name"] = item['name']
                 item_dict["qty"] = item['qty']
                 item_dict["description"] = item['description']
-                item_dict["img_path"] = self.img_path(src=item['img'])
 
                 for item_id in item['id'].split(', '):
                     self.items[item_id] = item_dict
 
-
-    def parseLine(self, line):
-        """Parse a line.
-        """
-
-        # Regex
-        re_title = re.match("^(#+) (.+)$", line)
-        re_img = re.match("^\!\[(.+)\]\((.+)\)$", line)
-        re_meta = re.match("^\$(\w+)(: (.+))?$", line)
-
-        rejected = ["---\n"]
-
-        # Init the parsed line
-        line_parsed = ""
-
-        if line in rejected:
-            line_parsed += ""
-
-        elif re_title:
-            line_parsed += self.parse_title(re_title)
-
-        elif re_img:
-            line_parsed += self.parse_image(re_img)
-
-        elif re_meta:
-            line_parsed += self.parse_meta(re_meta)
-
-        elif line == "\n":
-            if self.pf_inP:
-                # Close a paragrah
-                self.pf_inP = False
-                line_parsed += "</p>\n"
-            else:
-                line_parsed += ""
-
-        else:
-            if not self.pf_inP:
-                self.pf_inP = True
-                line_parsed += "\n<p>"
-
-            line_parsed += "%s " % line[:-1]
-
-        return line_parsed
-
     def parse(self):
-        """Parse all the document.
+        """Parse the document.
         """
-
-        # Reset flags
-        self.pf_inP = False
-
         # Parse the header
         self.parseHeader()
 
-        # Init the output file
-        self.doc_out = "%s/%s.php" % (
-                self.dir_out, self.header['version'])
+        # List sections
+        self.sections = self.getSections()
 
-        with open(self.doc_out, 'w') as f_out:
-            # Write down the header
-            # ... version
-            f_out.write(
-                    "<p>Documentation %s</p>\n"
-                    % self.header["version"])
-
-            # ... skill bagdes
-            skills = self.header.get("skills", [])
-            if skills:
-                f_out.write(
-                        "<section id=\"skillsList\">\n" \
-                        "<h2>Compétences</h2>\n" \
-                        "<ul>\n")
-
-                for skill, lvl in self.header.get("skills", []):
-                    skill_name = geoBuild.skill_badges[skill][0]
-                    skill_badge = self.write_img(
-                            src=geoBuild.skill_badges[skill][1],
-                            alt=skill_name,
-                            autoPath=False)
-                    f_out.write(
-                            "\t<li>\n" \
-                            "\t\t<div class=\"skill\">\n" \
-                            "\t\t\t%s\n" \
-                            "\t\t\t<p class=\"skill_name\">%s</p>" \
-                            "\t\t\t<p class=\"skill_lvl\">Niveau %d.</p>" \
-                            "\t\t</div>\n" \
-                            "\t</li>\n" % (
-                                skill_badge, skill_name, lvl))
-            f_out.write(
-                "</ul>\n" \
-                "\n" \
-                "</section>\n")
+        # Set the output dir
+        self.dir_out = "%s%s" % (self.root_out, self.header['version'])
+        os.makedirs(self.dir_out, exist_ok=True)
 
 
-            # ... parts list
-            f_out.write("\n")
-            f_out.write(
-                "<section id=\"partsList\" class=\"partsList\">\n" \
-                "<h2>Composants</h2>\n" \
-                "<ul>\n")
+        # Parse the rest of the document
+        self.f_in.seek(self.header_limit)
 
-            for item in self.header["items"]:
-                img_path = self.img_path(src=item['img'])
-                img = self.write_img(src=img_path,
-                        alt=item['description'],
-                        autoPath=False)
+        # Init the section dict
+        section = {'content': ''}
+        # Init the section flag
+        F_sectionToBeWriten = False
 
-                f_out.write(
-                        "\t<li>\n" \
-                        "\t\t<div class=\"item\">\n" \
-                        "\t\t\t<a href=\"%s\">\n" \
-                        "\t\t\t\t%s\n" \
-                        "\t\t\t</a>\n" \
-                        "\t\t\t<p class=\"item_name\">%s x%s</p>\n" \
-                        "\t\t\t<p class=\"item_description\">%s</p>\n" \
-                        "\t\t</div>\n" \
-                        "\t</li>\n" % (
-                        img_path, img, item['name'], item['qty'], item['description']))
+        for line in self.f_in.readlines():
+            p = self.parseLine(line)
 
-            f_out.write(
-                "</ul>\n" \
-                "\n" \
-                "</section>\n")
+            if p[0] == 'title':
+                if len(p[1].group(1)) == 1:
+                    # New section,
+                    # write down the previous one
+                    if F_sectionToBeWriten:
+                        self.write_section(section)
 
-            # ... intro
-            f_out.write("\n")
-            f_out.write(
-                "<section id=\"doc\" class=\"doc\">\n" \
-                "<h2>Notice de montage</h2>\n")
+                    # Reset the section
+                    section = {'content': ''}
 
-            # Parse the rest of the document
-            self.f_in.seek(self.header_limit)
+                    # Save its title in a buffer
+                    section['name'] = p[1].group(2)
 
-            for line in self.f_in.readlines():
-                # Parse the line
-                line_parsed = self.parseLine(line)
+                    # Turn on the flag
+                    F_sectionToBeWriten = True
 
-                # Write it out
-                f_out.write(line_parsed)
 
-            # Close any open paragraph
-            if self.pf_inP:
-                self.pg_inP = False
-                f_out.write("</p>\n")
+            elif p[0] == 'meta':
+                if p[1].group(1) == 'section_template':
+                    section['template'] = p[1].group(3)
+                if p[1].group(1) == 'section_url':
+                    section['url'] = p[1].group(3)
 
-            # ... ending
-            f_out.write("\n")
-            f_out.write("</section>")
+            else:
+                section['content'] += line
 
-    # ----------------
-    # -- subparsers --
-    # ----------------
+        # Write down the last section
+        if F_sectionToBeWriten:
+            self.write_section(section)
 
-    def parse_title(self, re_title):
-        """Parse a title based on the resuslt of the regex.
-        """
-        rank = len(re_title.group(1)) + 2
-        title = re_title.group(2)
-
-        return "\n<h%d>%s</h%d>\n" % (
-                rank, title, rank)
-
-    def parse_image(self, re_img):
-        """Parse an image based on the resuslt of the regex.
-        """
-        src = re_img.group(1)
-        alt = re_img.group(2)
-
-        parsed_line  = "\n"
-        parsed_line += self.write_img(src, alt)
-        parsed_line += "\n"
-
-        return parsed_line
-
-    def parse_meta(self, re_meta):
-        """Parse a meta command.
-        syntax:
-            $cmd
-            $cmd: arg1,arg2,...
-        eg
-            $items: C1,C2
+    def getSections(self):
+        """Parse the file and list sections.
         """
 
-        if len(re_meta.groups()) == 3:
-            if re_meta.group(1) == "items":
-                item_ids = re_meta.group(3).split(', ')
+        # Parse the rest of the document
+        self.f_in.seek(self.header_limit)
 
-                parsed_line  = "\n"
-                parsed_line += "<div class=\"partsList\"\n>"
-                parsed_line += "<ul>\n"
-                
-                for item_id in item_ids:
-                    item = self.items[item_id]
+        # Init the section name buffer
+        section_name = ""
 
-                    img = self.write_img(src=item["img_path"],
-                            alt=item['description'],
-                            autoPath=False)
+        # Init the sections buffer
+        sections = []
 
-                    parsed_line += "" \
-                        "\t<li>\n" \
-                        "\t\t<div class=\"item\">\n" \
-                        "\t\t\t<a href=\"%s\">\n" \
-                        "\t\t\t\t%s\n" \
-                        "\t\t\t</a>\n" \
-                        "\t\t\t<p class=\"item_name\">%s</p>\n" \
-                        "\t\t\t<p class=\"item_description\">%s</p>\n" \
-                        "\t\t</div>\n" \
-                        "\t</li>\n" % (
-                        item["img_path"], img, item_id, item['description'])
+        for line in self.f_in.readlines():
+            # Quick test...
+            if line[0] == '#':
+                # ... it may be a title
+                re_title = re.match(geoBuild.regex['title'], line)
+                if re_title and len(re_title.group(1)) == 1:
+                    section_name = re_title.group(2)
+            elif line[0] == '$':
+                # ... it may be the section id
+                re_meta = re.match(geoBuild.regex['meta'], line)
+                if re_meta and re_meta.group(1) == 'section':
+                    sections += [(section_name, re_meta.group(3))]
 
-                parsed_line += "</ul>\n" 
-                parsed_line += "</div>\n" 
+        return sections
 
-        return parsed_line
+
+    # -------------
+    # -- parsers --
+    # -------------
+
+    def parseLine(self, line):
+        """Parse the line ie return the type of the line.
+        """
+
+        for r_name, r_express in geoBuild.regex.items():
+            r_match = re.match(r_express, line)
+            if r_match:
+                return (r_name, r_match)
+
+        return (None, None)
 
 
     # -------------
     # -- writers --
     # -------------
+
+    def write_section(self, section):
+        """Write down the section.
+        """
+
+        # Build the name of the file to be writen
+        name_out = "%s/%s.html" % (self.dir_out, section['url'])
+
+        # Load the template
+        template = self.env.get_template(
+                '%s.html' % section['template'])
+        
+        # Write the file
+        with open(name_out, 'w') as f_out:
+            f_out.write(template.render(section))
+
 
     def write_img(self, src, alt="", autoPath = True):
         if autoPath == True:
@@ -291,3 +212,4 @@ class geoBuild():
 
     def img_path(self, src):
         return "../i/doc/%s/%s" % (self.header['long_project_id'], src)
+
