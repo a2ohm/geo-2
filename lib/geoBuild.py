@@ -129,7 +129,7 @@ class geoBuild():
 
 
         # Set the output dir
-        self.dir_out = "%s%s" % (self.root_out, self.header['version'])
+        self.dir_out = "%s_%s" % (self.root_out, self.header['version'])
         os.makedirs(self.dir_out, exist_ok=True)
 
 
