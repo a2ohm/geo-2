@@ -11,7 +11,7 @@ import jinja2
 class geoBuild():
 
     skill_badges = {
-            "solder" : ("Souder", "../i/badges/solder.png")
+            "solder" : ("Souder", "./i/badges/solder.png")
             }
 
     # Regex
@@ -32,6 +32,8 @@ class geoBuild():
         # Set the header
         self.header = None
         self.header_limit = -1
+        # Set the img references dict
+        self.imgRef = {}
 
         # Set the input file
         self.f_in = None
@@ -41,7 +43,7 @@ class geoBuild():
         self.dir_out = root_out
         
         self.items = {}
-        self.sections = []
+        self.pagination = {}
 
         # Environment
         self.env = jinja2.Environment(
@@ -58,8 +60,8 @@ class geoBuild():
         """
         self.f_in.close()
 
-    def parseHeader(self):
-        """Parse the header of the file.
+    def parseHeaderAndImg(self):
+        """Parse the header of the file and the img references file.
         """
 
         # Use mmap to only read the header of the raw doc file. This
@@ -75,24 +77,54 @@ class geoBuild():
             else:
                 raise("Cannot load the header")
 
-            # Parse the items list for further uses
-            for item in self.header["items"]:
-                item_dict = {}
-                item_dict["name"] = item['name']
-                item_dict["qty"] = item['qty']
-                item_dict["description"] = item['description']
+        # Load the image references file
+        with open("%s_img.yaml" % self.doc_in[:-3], 'r') as f:
+            self.imgRef = yaml.load(f)
 
-                for item_id in item['id'].split(', '):
-                    self.items[item_id] = item_dict
+        # Add im to items
+        for item in self.header['items']:
+            item['img'] = self.imgRef['items'][item['id']]
+
+        # Parse the items list for further uses
+        for item in self.header["items"]:
+            item_dict = {}
+            item_dict["qty"] = item['qty']
+            item_dict["description"] = item['description']
+            item_dict["img"] = item['img']
+
+            for item_id, item_name in zip(
+                    item['id'].split(', '),
+                    item['name'].split(', ')):
+                item_dict["name"] = item_name
+                item_dict['id'] = item_id
+                self.items[item_id] = item_dict.copy()
+
+
+    def parseSkills(self):
+        """Parse skills.
+        """
+
+        skills = [
+                (geoBuild.skill_badges[skill][0],
+                 geoBuild.skill_badges[skill][1],
+                 lvl)
+                for skill, lvl in self.header.get("skills", [])]
+
+        self.header['skills'] = skills
+
 
     def parse(self):
         """Parse the document.
         """
-        # Parse the header
-        self.parseHeader()
+        # Parse the header and the img references file
+        self.parseHeaderAndImg()
 
-        # List sections
-        self.sections = self.getSections()
+        # Parse skills
+        self.parseSkills()
+
+        # Do the pagination
+        self.doPagination()
+
 
         # Set the output dir
         self.dir_out = "%s%s" % (self.root_out, self.header['version'])
@@ -106,6 +138,8 @@ class geoBuild():
         section = {'content': ''}
         # Init the section flag
         F_sectionToBeWriten = False
+        # Init the paragraph flag
+        F_inP = False
 
         for line in self.f_in.readlines():
             p = self.parseLine(line)
@@ -130,43 +164,97 @@ class geoBuild():
             elif p[0] == 'meta':
                 if p[1].group(1) == 'section_template':
                     section['template'] = p[1].group(3)
+
                 if p[1].group(1) == 'section_url':
+                    name = p[1].group(3)
+                    # Add information about this section
                     section['url'] = p[1].group(3)
+                    section['previous_url'] = self.pagination[name][0]
+                    section['next_url'] = self.pagination[name][1]
+                    section['percent'] = self.pagination[name][2]
+                    # Get img for this sections
+                    if name in self.imgRef['pictures']:
+                        section['img'] = self.imgRef['pictures'][name]
+
+                if p[1].group(1) == 'items':
+                    section['items'] = [
+                            self.items[i] for i in
+                            p[1].group(3).split(", ")]
+
 
             else:
+                if line == '\n' and F_inP:
+                    section['content'] += '</p>\n'
+                    F_inP = False
+
+                elif line != '\n' and not F_inP:
+                    section['content'] += '<p>\n'
+                    F_inP = True
+
                 section['content'] += line
+
+        # Close the last paragraph, if necessary
+        if F_inP:
+            section['content'] += '</p>\n'
+            F_inP = False
+
 
         # Write down the last section
         if F_sectionToBeWriten:
             self.write_section(section)
 
-    def getSections(self):
-        """Parse the file and list sections.
+        # Write down the partsList
+        section = {'name': 'partsList',
+                    'template': 'partsList',
+                    'url': 'partsList'}
+        section['previous_url'] = self.pagination['partsList'][0]
+        section['next_url'] = self.pagination['partsList'][1]
+        section['percent'] = self.pagination['partsList'][2]
+        section['items'] = self.header['items']
+        self.write_section(section)
+
+    def doPagination(self):
+        """Do the pagination of the documentation.
         """
 
-        # Parse the rest of the document
+        # Start after the header
         self.f_in.seek(self.header_limit)
 
-        # Init the section name buffer
-        section_name = ""
-
+        # LIST SECTIONS
         # Init the sections buffer
         sections = []
 
         for line in self.f_in.readlines():
-            # Quick test...
-            if line[0] == '#':
-                # ... it may be a title
-                re_title = re.match(geoBuild.regex['title'], line)
-                if re_title and len(re_title.group(1)) == 1:
-                    section_name = re_title.group(2)
-            elif line[0] == '$':
+            if line[0] == '$':
                 # ... it may be the section id
                 re_meta = re.match(geoBuild.regex['meta'], line)
-                if re_meta and re_meta.group(1) == 'section':
-                    sections += [(section_name, re_meta.group(3))]
+                if re_meta and re_meta.group(1) == 'section_url':
+                    sections += [re_meta.group(3)]
 
-        return sections
+        # PAGINATE
+        # Pagination of the introduction
+        self.pagination['intro'] = (
+                '#', 'partsList', 0)
+
+        # Pagination of the partList
+        percent = int(100/len(sections))
+        self.pagination['partsList'] = (
+                'intro', sections[1], percent)
+
+        # Pagination of the first section
+        self.pagination[sections[1]] = (
+                'partsList', sections[2], 2*percent)
+
+        # Pagination of the last section
+        self.pagination[sections[-1]] = (
+                sections[-2], '#', 100)
+
+        # Pagination of the rest
+        for id, section in enumerate(sections[2:-1]):
+            percent = int((id+2)*100/len(sections))
+            self.pagination[section] = (sections[id-1+2],
+                        sections[id+1+2], percent)
+
 
 
     # -------------
@@ -199,10 +287,11 @@ class geoBuild():
         # Load the template
         template = self.env.get_template(
                 '%s.html' % section['template'])
-        
+
         # Write the file
         with open(name_out, 'w') as f_out:
-            f_out.write(template.render(section))
+            f_out.write(template.render(section=section,
+                header=self.header))
 
 
     def write_img(self, src, alt="", autoPath = True):
