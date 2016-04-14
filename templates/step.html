@@ -16,8 +16,8 @@
                     <div class="placeHolder"></div>
     {% for img in section.img %}
     <a href="{{ roots.img }}/{{ header.long_project_id }}/{{ img }}">
-                        <img class="thumbnail" src="{{ roots.img }}/001-v2/{{ img }}" />
-                        <img class="big" src="{{ roots.img }}/001-v2/{{ img }}" />
+        <img class="thumbnail" src="{{ roots.img }}/{{ header.long_project_id }}/{{ img }}" />
+        <img class="big" src="{{ roots.img }}/{{ header.long_project_id }}/{{ img }}" />
                     </a>
     {% endfor %}
                 </div>
