@@ -19,9 +19,6 @@ class geoBuild():
                 'meta': "^\$(\w+)(: (.+))?$"
                 }
 
-    # Templates
-    template = {    'intro': 'intro.html'}
-
     def __init__(self, doc_in, root_out = "./doc"):
         """Init the parser.
         """
