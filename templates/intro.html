@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block css %}
+    {{ super() }}
+
+        <link rel="stylesheet" media="screen" type="text/css" href="css/doc-skills.css" />
+
+        <link rel="stylesheet" media="screen and (max-width:600px)" href="css/doc-3_small.css">
+{% endblock css %}
+
+{% block content %}
+            <div class="col2-left">
+                <img class="cover" src="i/001-v2/001-v2_cover.jpg" />
+            </div>
+
+            <div class="col2-right">
+                <div class="col2-right-content">
+                    {{ section.content }}
+
+                    <div id="skills-list">
+                        <ul>
+                            {% for skill in header.skills %}
+                            <li>
+                                <img src="{{ skill[1] }}" />
+                                <aside>{{ skill[0] }}<br /> (niv. {{ skill[2] }})</aside>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <p class="center">
+                    <a href="{{ section.next_url }}.html" class="button button-big">FABRIQUER !</a>
+                    </p>
+                </div>
+            </div>
+{% endblock content %}
+

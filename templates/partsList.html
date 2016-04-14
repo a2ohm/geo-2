@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block css %}
+    {{ super() }}
+
+        <link rel="stylesheet" media="screen" type="text/css" href="css/doc-elements.css" />
+    
+        <link rel="stylesheet" media="screen" type="text/css" href="css/doc-partsList.css" />
+{% endblock css %}
+
+{% block content %}
+            <div class="partsList">
+                <h2>Liste des composants</h2>
+                <ul>
+    {% for item in section['items'] %}
+                    <li>
+                        <div class="item">
+                            <a href="./i/001-v2/{{ item.img }}">
+                                <img src="./i/001-v2/{{ item.img }}" alt="{{ item.name }}" />
+                            </a>
+                            <p class="item_name">{{ item.name }} x{{ item.qty }}</p>
+                            <p class="item_description">{{ item.description }}</p>
+                        </div>
+                    </li>
+    {% endfor %}
+                </ul>
+                
+            </div>
+{% endblock content %}
+

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block css %}
+    {{ super() }}
+
+        <link rel="stylesheet" media="screen" type="text/css" href="css/doc-elements.css" />
+    
+        <link rel="stylesheet" media="screen" type="text/css" href="css/doc-partsList.css" />
+
+        <link rel="stylesheet" media="screen" type="text/css" href="css/doc-imgBlock.css" />
+{% endblock css %}
+
+{% block content %}
+            <div class="col2-left">
+                <div class="imgBlock">
+                    <div class="placeHolder"></div>
+    {% for img in section.img %}
+                    <a href="./i/001-v2/{{ img }}">
+                        <img class="thumbnail" src="./i/001-v2/{{ img }}" />
+                        <img class="big" src="./i/001-v2/{{ img }}" />
+                    </a>
+    {% endfor %}
+                </div>
+            </div>
+
+            <div class="col2-right">
+                <div class="col2-right-content">
+                    <h2>{{ section.name }}</h1>
+    {% if 'items' in section %}
+                    <div class="partsList">
+                        <ul>
+    {% for item in section['items'] %}
+                            <li>
+                                <div class="item">
+                                    <a href="./i/001-v2/{{ item.img }}">
+                                        <img src="./i/001-v2/{{ item.img }}" alt="circuit imprimé" />
+                                    </a>
+                                    <p class="item_name">{{ item.name }}</p>
+                                    <p class="item_description">{{ item.description }}</p>
+                                </div>
+                            </li>
+    {% endfor %}
+                        </ul>
+                    </div>
+    {% endif %}
+                    {{ section.content }}
+                </div>
+            </div>
+
+{% endblock content %}
