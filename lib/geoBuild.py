@@ -11,13 +11,18 @@ import jinja2
 class geoBuild():
 
     skill_badges = {
-            "solder" : ("Souder", "./i/badges/solder.png")
+            "solder" : ("Souder", "badges/solder.png")
             }
 
     # Regex
     regex = {   'title': "^(#+) (.+)$",
                 'meta': "^\$(\w+)(: (.+))?$"
                 }
+
+    # Roots
+    roots = {
+            'css': '../css',
+            'img': '../i'}
 
     def __init__(self, doc_in, root_out = "./doc"):
         """Init the parser.
@@ -231,7 +236,7 @@ class geoBuild():
         # PAGINATE
         # Pagination of the introduction
         self.pagination['intro'] = (
-                '#', 'partsList', 0)
+                '', 'partsList', 0)
 
         # Pagination of the partList
         percent = int(100/len(sections))
@@ -244,7 +249,7 @@ class geoBuild():
 
         # Pagination of the last section
         self.pagination[sections[-1]] = (
-                sections[-2], '#', 100)
+                sections[-2], '', 100)
 
         # Pagination of the rest
         for id, section in enumerate(sections[2:-1]):
@@ -288,7 +293,8 @@ class geoBuild():
         # Write the file
         with open(name_out, 'w') as f_out:
             f_out.write(template.render(section=section,
-                header=self.header))
+                header=self.header,
+                roots=geoBuild.roots))
 
 
     def write_img(self, src, alt="", autoPath = True):

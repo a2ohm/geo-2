@@ -8,12 +8,12 @@
 
         <!-- CSS -->
         {% block css %}
-        <link rel="stylesheet" media="screen" type="text/css" href="css/doc-3.css" />
-        <link rel="stylesheet" media="screen and (max-width:600px)" href="css/doc-3_small.css">
+        <link rel="stylesheet" media="screen" type="text/css" href="{{ roots.css }}/doc-3.css" />
+        <link rel="stylesheet" media="screen and (max-width:600px)" href="{{ roots.css }}/doc-3_small.css">
 
-        <link rel="stylesheet" media="screen" type="text/css" href="css/doc-elements.css" />
+        <link rel="stylesheet" media="screen" type="text/css" href="{{ roots.css }}/doc-elements.css" />
 
-        <link rel="stylesheet" media="screen" type="text/css" href="css/doc-skills.css" />
+        <link rel="stylesheet" media="screen" type="text/css" href="{{ roots.css }}/doc-skills.css" />
         {% endblock %}
     </head>
 
@@ -24,7 +24,7 @@
         </main>
 
         <header>
-            <img src="i/kitnpack_badge.png" alt="icon Kit&Pack" />
+            <img src="{{ roots.img }}/kitnpack_badge.png" alt="icon Kit&Pack" />
 
             <div class="v-menu">
                 001-v2 <span class="arrow">⯆</span>
@@ -38,11 +38,11 @@
         </header>
 
         <footer>
-            <a class="previous" href="{{ section.previous_url }}.html" rel="prev">⯇</a>
+            <a class="previous" href="{{ section.previous_url }}" rel="prev">⯇</a>
             <div class="progress">
                 <span style="width: {{ section.percent }}%"></span>
             </div>
-            <a class="next" href="{{ section.next_url }}.html" rel="next">⯈</a>
+            <a class="next" href="{{ section.next_url }}" rel="next">⯈</a>
         </footer>
     </body>
 </html>

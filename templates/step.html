@@ -3,11 +3,11 @@
 {% block css %}
     {{ super() }}
 
-        <link rel="stylesheet" media="screen" type="text/css" href="css/doc-elements.css" />
+    <link rel="stylesheet" media="screen" type="text/css" href="{{ roots.css }}/doc-elements.css" />
     
-        <link rel="stylesheet" media="screen" type="text/css" href="css/doc-partsList.css" />
+    <link rel="stylesheet" media="screen" type="text/css" href="{{ roots.css }}/doc-partsList.css" />
 
-        <link rel="stylesheet" media="screen" type="text/css" href="css/doc-imgBlock.css" />
+    <link rel="stylesheet" media="screen" type="text/css" href="{{ roots.css }}/doc-imgBlock.css" />
 {% endblock css %}
 
 {% block content %}
@@ -15,9 +15,9 @@
                 <div class="imgBlock">
                     <div class="placeHolder"></div>
     {% for img in section.img %}
-                    <a href="./i/001-v2/{{ img }}">
-                        <img class="thumbnail" src="./i/001-v2/{{ img }}" />
-                        <img class="big" src="./i/001-v2/{{ img }}" />
+    <a href="{{ roots.img }}/{{ header.long_project_id }}/{{ img }}">
+                        <img class="thumbnail" src="{{ roots.img }}/001-v2/{{ img }}" />
+                        <img class="big" src="{{ roots.img }}/001-v2/{{ img }}" />
                     </a>
     {% endfor %}
                 </div>
@@ -32,8 +32,8 @@
     {% for item in section['items'] %}
                             <li>
                                 <div class="item">
-                                    <a href="./i/001-v2/{{ item.img }}">
-                                        <img src="./i/001-v2/{{ item.img }}" alt="circuit imprimé" />
+                                    <a href="{{ roots.img }}/{{ header.long_project_id }}/{{ item.img }}">
+                                        <img src="{{ roots.img }}/{{ header.long_project_id }}/{{ item.img }}" alt="circuit imprimé" />
                                     </a>
                                     <p class="item_name">{{ item.name }}</p>
                                     <p class="item_description">{{ item.description }}</p>
